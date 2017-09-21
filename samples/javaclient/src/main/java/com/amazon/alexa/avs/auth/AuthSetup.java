@@ -1,13 +1,13 @@
-/** 
+/**
  * Copyright 2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
- * Licensed under the Amazon Software License (the "License"). You may not use this file 
+ * Licensed under the Amazon Software License (the "License"). You may not use this file
  * except in compliance with the License. A copy of the License is located at
  *
  *   http://aws.amazon.com/asl/
  *
- * or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS, 
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the 
+ * or in the "license" file accompanying this file. This file is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License for the
  * specific language governing permissions and limitations under the License.
  */
 package com.amazon.alexa.avs.auth;
@@ -37,7 +37,6 @@ public class AuthSetup implements AccessTokenListener {
     private static final Logger log = LoggerFactory.getLogger(AuthSetup.class);
 
     private final DeviceConfig deviceConfig;
-    private final RegCodeDisplayHandler regCodeDisplayHandler;
     private final Set<AccessTokenListener> accessTokenListeners = new HashSet<>();
 
     /**
@@ -45,12 +44,9 @@ public class AuthSetup implements AccessTokenListener {
      *
      * @param deviceConfig
      *            Information about this device.
-     * @param regCodeDisplayHandler
      */
-    public AuthSetup(final DeviceConfig deviceConfig,
-            final RegCodeDisplayHandler regCodeDisplayHandler) {
+    public AuthSetup(final DeviceConfig deviceConfig) {
         this.deviceConfig = deviceConfig;
-        this.regCodeDisplayHandler = regCodeDisplayHandler;
     }
 
     public void addAccessTokenListener(AccessTokenListener accessTokenListener) {
@@ -61,7 +57,7 @@ public class AuthSetup implements AccessTokenListener {
      * Initializes threads for the {@link CompanionAppProvisioningServer} and the
      * {@link CompanionServiceClient}, depending on which is selected by the user.
      */
-    public void startProvisioningThread() {
+    public void startProvisioningThread(RegCodeDisplayHandler regCodeDisplayHandler) {
         if (deviceConfig.getProvisioningMethod() == ProvisioningMethod.COMPANION_APP) {
             OAuth2ClientForPkce oAuthClient =
                     new OAuth2ClientForPkce(deviceConfig.getCompanionAppInfo().getLwaUrl());
@@ -71,38 +67,54 @@ public class AuthSetup implements AccessTokenListener {
             final CompanionAppProvisioningServer registrationServer =
                     new CompanionAppProvisioningServer(authManager, deviceConfig);
 
-            Thread provisioningThread = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        registrationServer.startServer();
-                    } catch (Exception e) {
-                        log.error("Failed to start companion app provisioning server", e);
-                    }
+            Runnable provisioningTask = () -> {
+                try {
+                    registrationServer.startServer();
+                } catch (Exception e) {
+                    log.error("Failed to start companion app provisioning server", e);
                 }
             };
-            provisioningThread.start();
+            new Thread(provisioningTask).start();
         } else if (deviceConfig.getProvisioningMethod() == ProvisioningMethod.COMPANION_SERVICE) {
             CompanionServiceClient remoteProvisioningClient =
                     new CompanionServiceClient(deviceConfig);
             final CompanionServiceAuthManager authManager = new CompanionServiceAuthManager(
                     deviceConfig, remoteProvisioningClient, regCodeDisplayHandler, this);
 
-            Thread provisioningThread = new Thread() {
-                @Override
-                public void run() {
-                    try {
-                        authManager.startRemoteProvisioning();
-                    } catch (Exception e) {
-                        if (e.getMessage().startsWith("InvalidSessionId")) {
-                            log.error(
-                                    "Could not authenticate. Did you sign into Amazon before clicking ok?");
-                        }
-                        log.error("Failed to start companion service client", e);
+            Runnable provisioningTask = () -> {
+                try {
+                    authManager.startRemoteProvisioning();
+                } catch (Exception e) {
+                    if (e.getMessage() != null && e.getMessage().startsWith("InvalidSessionId")) {
+                        log.error("Could not authenticate. Did you sign into Amazon before "
+                                + "proceeding?");
                     }
+                    log.error("Failed to start companion service client", e);
                 }
             };
-            provisioningThread.start();
+            new Thread(provisioningTask).start();
+        }
+    }
+
+    public void startLogoutThread(RegCodeDisplayHandler regCodeDisplayHandler) {
+        if (deviceConfig.getProvisioningMethod() == ProvisioningMethod.COMPANION_SERVICE) {
+            CompanionServiceClient remoteProvisioningClient =
+                    new CompanionServiceClient(deviceConfig);
+            final CompanionServiceAuthManager authManager = new CompanionServiceAuthManager(
+                    deviceConfig, remoteProvisioningClient, regCodeDisplayHandler, this);
+
+            Runnable logoutTask = () -> {
+                try {
+                    authManager.revokeToken();
+                } catch (Exception e) {
+                    if (e.getMessage().startsWith("InvalidSessionId")) {
+                        log.error(
+                                "Could not logout. Were you logged in?");
+                    }
+                    log.error("Failed to start companion service client", e);
+                }
+            };
+            new Thread(logoutTask).start();
         }
     }
 
@@ -111,5 +123,12 @@ public class AuthSetup implements AccessTokenListener {
         accessTokenListeners
                 .stream()
                 .forEach(listener -> listener.onAccessTokenReceived(accessToken));
+    }
+
+    @Override
+    public void onAccessTokenRevoked() {
+        accessTokenListeners
+                .stream()
+                .forEach(listener -> listener.onAccessTokenRevoked());
     }
 }

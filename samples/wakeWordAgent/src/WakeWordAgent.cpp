@@ -15,6 +15,12 @@
 #include "WakeWordUtils.h"
 #include "Logger.h"
 
+#include <matrix_hal/everloop_image.h>
+#include <matrix_hal/everloop.h>
+#include <matrix_hal/wishbone_bus.h>
+
+namespace hal = matrix_hal;
+
 #include <string>
 #include <unistd.h>
 
@@ -63,6 +69,15 @@ WakeWordAgent::~WakeWordAgent() {
 // transition should be self-explanatory.
 void WakeWordAgent::mainLoop() {
 
+  hal::WishboneBus bus;
+
+  bus.SpiInit();
+
+  hal::Everloop everloop;
+  hal::EverloopImage image1d;
+
+  everloop.Setup(&bus);
+
   log(Logger::INFO, "WakeWordAgent: thread started");
 
   std::unique_lock<std::mutex> lck(m_mtx);
@@ -84,6 +99,13 @@ void WakeWordAgent::mainLoop() {
         case State::WAKE_WORD_DETECTED:
           m_IPCHandler->sendCommand(Command::WAKE_WORD_DETECTED);
           setState(State::SENT_WAKE_WORD_DETECTED);
+          for (hal::LedValue& led : image1d.leds) {
+            led.red = 50;
+            led.green = 0;
+            led.blue = 0;
+            led.white = 0;
+          }
+          everloop.Write(&image1d);
           break;
 
         case State::WAKE_WORD_PAUSE_REQUESTED:
@@ -95,6 +117,13 @@ void WakeWordAgent::mainLoop() {
         case State::WAKE_WORD_RESUME_REQUESTED:
           m_wakeWordEngine->resume();
           setState(State::IDLE);
+          for (hal::LedValue& led : image1d.leds) {
+            led.red = 0;
+            led.green = 0;
+            led.blue = 50;
+            led.white = 0;
+          }
+          everloop.Write(&image1d);
           break;
 
         default:

@@ -4,17 +4,17 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.amazon.alexa.avs</groupId>
   <artifactId>sample-java-client</artifactId>
-  <version>20160207.2</version>
+  <version>20160207.5</version>
   <packaging>jar</packaging>
   <name>Alexa Voice Service Sample Java Client</name>
   <url>https://developer.amazon.com/appsandservices/solutions/alexa/alexa-voice-service</url>
 
   <properties>
     <jetty.version>9.3.7.v20160115</jetty.version>
-    <!-- The latest version of alpn-boot that supports JDK 1.8.0_71 through 1.8.0_74 -->
+    <!-- The latest version of alpn-boot that supports JDK 1.8.0_121 -->
     <!-- To override, pass -Dalpn-boot.version=YOUR_VERSION when running "mvn install" and "mvn exec:exec" -->
     <!-- Your version can be determined here: http://www.eclipse.org/jetty/documentation/current/alpn-chapter.html#alpn-versions -->
-    <alpn-boot.version>8.1.7.v20160121</alpn-boot.version>
+    <alpn-boot.version>8.1.11.v20170118</alpn-boot.version>
     <slf4j.version>1.7.10</slf4j.version>
     <log4j.version>2.3</log4j.version>
   </properties>
@@ -163,6 +163,14 @@
           <include>**/*.mp3</include>
         </includes>
       </resource>
+      <!-- Don't filter the png files or they'll get corrupted -->
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>false</filtering>
+        <includes>
+          <include>**/*.png</include>
+        </includes>
+      </resource>
     </resources>
     <pluginManagement>
       <plugins>
@@ -187,7 +195,7 @@
               <argument>-classpath</argument>
               <classpath/>
               <argument>-Djna.library.path=${env.VLC_PATH}</argument>
-              <argument>com.amazon.alexa.avs.AVSApp</argument>
+              <argument>com.amazon.alexa.avs.App</argument>
             </arguments>
           </configuration>
         </plugin>

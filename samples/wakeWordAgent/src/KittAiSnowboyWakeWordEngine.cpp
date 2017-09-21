@@ -1,13 +1,13 @@
 /**
  * Copyright 2016 Amazon.com, Inc. or its affiliates. All Rights Reserved.
  *
- * Licensed under the Amazon Software License (the "License"). You may not use this file 
+ * Licensed under the Amazon Software License (the "License"). You may not use this file
  * except in compliance with the License. A copy of the License is located at
  *
  *   http://aws.amazon.com/asl/
  *
- * or in the "license" file accompanying this file. This file is distributed on an "AS IS" 
- * BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License 
+ * or in the "license" file accompanying this file. This file is distributed on an "AS IS"
+ * BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, express or implied. See the License
  * for the specific language governing permissions and limitations under the License.
  */
 
@@ -25,7 +25,6 @@ namespace AlexaWakeWord {
 
 static const std::string  RESOURCE_FILE  = "../ext/resources/common.res";
 static const std::string  MODEL_FILE     = "../ext/resources/alexa.umdl";
-static const std::string  SENSITIVITY    = "0.5";
 static const float        AUDIO_GAIN     = 1.0;
 static const bool         APPLY_FRONTEND = true;
 static const int          MICROSECONDS_BETWEEN_SAMPLES = 100000;
@@ -102,11 +101,9 @@ void KittAiSnowboyWakeWordEngine::initDetector() {
       std::string("Initializing Kitt-Ai Snowboy library ") +
       " | resource file:" + RESOURCE_FILE +
       " | model file: " + MODEL_FILE +
-      " | sensitivity: " + SENSITIVITY +
       " | audio gain: " + std::to_string(AUDIO_GAIN));
 
   m_detector = make_unique<SnowboyDetect>(RESOURCE_FILE, MODEL_FILE);
-  m_detector->SetSensitivity(SENSITIVITY);
   m_detector->SetAudioGain(AUDIO_GAIN);
   m_detector->ApplyFrontend(APPLY_FRONTEND);
   m_isDetectorSetup = true;

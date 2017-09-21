@@ -2,6 +2,7 @@
 var https = require('https');
 var uuid = require('node-uuid');
 var config = require("./config");
+var storage = require('node-storage');
 
 var auth = {};
 
@@ -9,7 +10,7 @@ var sessionIds = [];
 var sessionIdToDeviceInfo = {};
 var regCodeToSessionId = {};
 var pendingStateToRegCode = {};
-var sessionIdToRefreshToken = {};
+var refreshTokenStorage = new storage('./refresh_tokens');
 
 var REG_NUM_BYTES = 12;
 var PRODUCT_MAX_LENGTH = 384;
@@ -172,17 +173,16 @@ auth.getAccessToken = function(sessionId, callback) {
         return;
     }
 
-    if (sessionIds.indexOf(sessionId) == -1 || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(sessionId)) {
-        callback(error('InvalidSessionId', 'The provided sessionId was invalid.', 401));
+    var refreshToken = refreshTokenStorage.get(sessionId);
+
+    if ((refreshToken === null) || (refreshToken === undefined) || (refreshToken === "")) {
+        if (sessionIds.indexOf(sessionId) == -1 || !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(sessionId)) {
+            callback(error('InvalidSessionId', 'The provided sessionId was invalid.', 401));
+            return;
+        }
+        callback(error('InvalidSessionId', "No refresh tokens stored for this session id: " + sessionId, 401));
         return;
     }
-
-    if (!(sessionId in sessionIdToRefreshToken)) {
-        callback(error('InvalidSessionId', "No refresh tokens cached for session id: " + sessionId, 401));
-        return;
-    }
-
-    var refreshToken = sessionIdToRefreshToken[sessionId];
 
     var options = getLwaPostOptions('/auth/o2/token');
     var reqGrant = 'grant_type=refresh_token' +
@@ -196,7 +196,8 @@ auth.getAccessToken = function(sessionId, callback) {
         res.on('end', function () {
             if (res.statusCode === 200 && resultBuffer !== null) {
                 var result = JSON.parse(resultBuffer);
-
+                // Update the refresh token in the storage
+                refreshTokenStorage.put(sessionId, result.refresh_token);
                 // Craft the response to the device
                 var reply = {
                     access_token: result.access_token,
@@ -230,6 +231,31 @@ auth.getAccessToken = function(sessionId, callback) {
 };
 
 /**
+ * Revokes token associated with the sessionId.
+ *
+ * @param sessionId The sessionId for this device.
+ * @param callback The callback(err, json) to return data to the user.
+ */
+auth.revokeToken = function(sessionId, callback) {
+    var missingProperties = [];
+    if (!sessionId) {
+        missingProperties.push("sessionId");
+    }
+
+    if (missingProperties.length > 0) {
+        callback(error("MissingParams", "The following parameters were missing or empty strings: " + missingProperties.join(", "), 400));
+        return;
+    }
+
+    refreshTokenStorage.remove(sessionId);
+
+    var reply = {
+        logoutSuccess: true
+     };
+    callback(null, reply);
+};
+
+/**
  * Redirects the user to the LWA login page to enter their username and password.
  *
  * @param regCode The registration code that was presented to the user and maps their request to the device that generated the registration code.
@@ -248,7 +274,7 @@ auth.register = function (regCode, res, callback) {
 };
 
 /**
- * Performs the initial request for refreshToken after the user has logged in and redirected to /authresponse.
+ * Performs the initial request for refreshToken and saves the refreshToken in disk after the user has logged in and redirected to /authresponse.
  *
  * @param authCode The authorization code that was included in the redirect from LWA.
  * @param stateCode The state code that we use to map a redirect from LWA back to device information.
@@ -290,8 +316,7 @@ auth.authresponse = function (authCode, stateCode, callback) {
         res.on('end', function () {
             if (res.statusCode === 200 && resultBuffer !== null) {
                 var result = JSON.parse(resultBuffer);
-
-                sessionIdToRefreshToken[sessionId] = result.refresh_token;
+                refreshTokenStorage.put(sessionId, result.refresh_token);
                 callback(null, "device tokens ready");
             } else {
                 callback(error('TokenRetrievalFailure', 'Unexpected failure while retrieving tokens.', res.statusCode));

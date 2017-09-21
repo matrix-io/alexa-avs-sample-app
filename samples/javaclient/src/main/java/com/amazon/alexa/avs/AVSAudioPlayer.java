@@ -81,6 +81,7 @@ public class AVSAudioPlayer {
     // convert and limit volume values.
     private static final long VLCJ_VOLUME_SCALAR = 2;
     private static final int VLCJ_MIN_VOLUME = 0;
+    private static final int VLCJ_DEFAULT_VOLUME = 100;
     private static final int VLCJ_MAX_VOLUME = 200;
 
     // VLC's elapsed time doesn't work correctly. So we're using System.nanoTime() to get accurate
@@ -125,6 +126,8 @@ public class AVSAudioPlayer {
 
     private volatile SpeechState speechState = SpeechState.FINISHED;
 
+    private boolean isInterrupted = false;
+
     private boolean currentlyMuted;
 
     public AVSAudioPlayer(AVSController controller) {
@@ -140,6 +143,9 @@ public class AVSAudioPlayer {
         setupAudioPlayer();
 
         currentVolume = audioPlayer.getMediaPlayer().getVolume();
+        if (currentVolume == VLCJ_MIN_VOLUME) {
+            currentVolume = VLCJ_DEFAULT_VOLUME;
+        }
         currentlyMuted = audioPlayer.getMediaPlayer().isMute();
 
         audioPlayerStateMachine = new AudioPlayerStateMachine(this, controller);
@@ -169,6 +175,8 @@ public class AVSAudioPlayer {
         AudioItem item = play.getAudioItem();
         if (play.getPlayBehavior() == Play.PlayBehavior.REPLACE_ALL) {
             clearAll();
+            // if already playing, transition to stopped and send PlaybackStopped event
+            audioPlayerStateMachine.playReplaceAll();
         } else if (play.getPlayBehavior() == Play.PlayBehavior.REPLACE_ENQUEUED) {
             clearEnqueued();
         }
@@ -209,11 +217,11 @@ public class AVSAudioPlayer {
 
     public void handleClearQueue(ClearQueue clearQueue) {
         if (clearQueue.getClearBehavior() == ClearQueue.ClearBehavior.CLEAR_ALL) {
-            audioPlayerStateMachine.clearQueueAll();
             clearAll();
+            audioPlayerStateMachine.clearQueueAll();
         } else {
-            audioPlayerStateMachine.clearQueueEnqueued();
             clearEnqueued();
+            audioPlayerStateMachine.clearQueueEnqueued();
         }
     }
 
@@ -315,6 +323,10 @@ public class AVSAudioPlayer {
 
                     audioPlayerStateMachine.playbackStarted();
                     startTimerAndProgressReporter();
+
+                    if (isInterrupted) {
+                        interruptContent();
+                    }
 
                     if (isPaused) {
                         audioPlayerStateMachine.playbackPaused();
@@ -427,7 +439,6 @@ public class AVSAudioPlayer {
 
     private boolean isPlaying() {
         return (audioPlayerStateMachine.getState() == AudioPlayerState.PLAYING
-                || audioPlayerStateMachine.getState() == AudioPlayerState.PAUSED
                 || audioPlayerStateMachine.getState() == AudioPlayerState.BUFFER_UNDERRUN);
     }
 
@@ -467,6 +478,7 @@ public class AVSAudioPlayer {
      * Interrupt only content
      */
     private void interruptContent() {
+        isInterrupted = true;
 
         synchronized (audioPlayer.getMediaPlayer()) {
             if (!playQueue.isEmpty() && isPlaying() && audioPlayer.getMediaPlayer().isPlaying()) {
@@ -502,6 +514,8 @@ public class AVSAudioPlayer {
      * Resume any content
      */
     private void resumeContent() {
+        isInterrupted = false;
+
         synchronized (audioPlayer.getMediaPlayer()) {
             if (!playQueue.isEmpty() && isPlayingOrPaused()
                     && !audioPlayer.getMediaPlayer().isPlaying()) {

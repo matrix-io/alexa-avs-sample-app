@@ -451,7 +451,7 @@ echo ""
 # Install dependencies
 echo "========== Update Aptitude ==========="
 sudo apt-get update
-sudo apt-get upgrade -y
+sudo apt-get upgrade -yq
 
 echo "========== Installing Git ============"
 sudo apt-get install -y git
@@ -469,6 +469,10 @@ cd $Origin
 echo "========== Installing Libraries for Kitt-Ai and Sensory: ALSA, Atlas ==========="
 sudo apt-get -y install libasound2-dev
 sudo apt-get -y install libatlas-base-dev
+sudo ldconfig
+
+echo "========== Installing WiringPi ==========="
+sudo apt-get -y install wiringpi
 sudo ldconfig
 
 echo "========== Installing VLC and associated Environmental Variables =========="
@@ -563,7 +567,9 @@ cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/include/pa_util.h $Extern
 cp $Kitt_Ai_Loc/snowboy/lib/$OS/libsnowboy-detect.a $External_Loc/lib/libsnowboy-detect.a
 cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/lib/libportaudio.a $External_Loc/lib/libportaudio.a
 cp $Kitt_Ai_Loc/snowboy/resources/common.res $External_Loc/resources/common.res
-cp $Kitt_Ai_Loc/snowboy/resources/alexa.umdl $External_Loc/resources/alexa.umdl
+cp $Kitt_Ai_Loc/snowboy/resources/alexa/alexa-avs-sample-app/alexa.umdl $External_Loc/resources/alexa.umdl
+
+sudo ln -s /usr/lib/atlas-base/atlas/libblas.so.3 $External_Loc/lib/libblas.so.3
 
 $Sensory_Loc/alexa-rpi/bin/sdk-license file $Sensory_Loc/alexa-rpi/config/license-key.txt $Sensory_Loc/alexa-rpi/lib/libsnsr.a $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-20500.snsr $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-21000.snsr $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-31000.snsr
 cp $Sensory_Loc/alexa-rpi/include/snsr.h $External_Loc/include/snsr.h

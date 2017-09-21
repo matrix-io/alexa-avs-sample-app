@@ -15,6 +15,7 @@ package com.amazon.alexa.avs.http;
 import com.amazon.alexa.avs.AVSRequest;
 import com.amazon.alexa.avs.AudioInputFormat;
 import com.amazon.alexa.avs.RequestListener;
+import com.amazon.alexa.avs.ResultListener;
 import com.amazon.alexa.avs.config.ObjectMapperFactory;
 import com.amazon.alexa.avs.exception.AVSException;
 import com.amazon.alexa.avs.exception.AVSJsonProcessingException;
@@ -109,26 +110,29 @@ public class AVSClient implements ConnectionListener {
     private MultipartParser downchannelParser;
     private HTTP2Client http2Client;
     private ParsingFailedHandler parsingFailedHandler;
+    private ResultListener resultListener;
 
     /**
-     * Constructor that takes a host, a {@link DirectiveQueue}, and a {@link SslContextFactory} .
+     * Constructor that takes a host, a {@link MultipartParserConsumer}, and a {@link SslContextFactory} .
      * The provided {@link SslContextFactory} may allow bypassing server certificates, or handling
      * TLS/SSL in different ways.
      *
      * @param host
      *            The URL of the AVS host.
-     * @param directiveEnqueuer
-     *            The {@link DirectiveQueue} where {@link DirectiveGroup}s will be passed to be
-     *            processed.
+     * @param multipartParserConsumer
+     *            The {@link MultipartParserConsumer} for executing the directives from the
+     *            multipartParser.
      * @param sslContextFactory
      *            The {@link SslContextFactory} to use for validating certificates.
      * @param parsingFailedHandler
      *            The handler for handling parse failures.
+     * @param resultListener
+     *            The listener for checking that the downchannel has been set up
      * @throws Exception
      */
     public AVSClient(URL host, MultipartParserConsumer multipartParserConsumer,
-            SslContextFactory sslContextFactory, ParsingFailedHandler parsingFailedHandler)
-                    throws Exception {
+            SslContextFactory sslContextFactory, ParsingFailedHandler parsingFailedHandler,
+            ResultListener resultListener) throws Exception {
         http2Client = new HTTP2Client();
         this.host = host;
         this.sslContextFactory = sslContextFactory;
@@ -137,6 +141,8 @@ public class AVSClient implements ConnectionListener {
         downchannelParser = new MultipartParser(multipartParserConsumer);
 
         this.parsingFailedHandler = parsingFailedHandler;
+
+        this.resultListener = resultListener;
 
         createNewHttpClient();
 
@@ -217,7 +223,7 @@ public class AVSClient implements ConnectionListener {
     /**
      * Execute a request.
      *
-     * @param request
+     * @param avsRequest
      */
     private void doRequest(AVSRequest avsRequest) {
 
@@ -226,7 +232,8 @@ public class AVSClient implements ConnectionListener {
             public Void call() throws Exception {
                 Request request =
                         createRequest(avsRequest.getResource(), avsRequest.getContentProvider());
-                doRequestActual(request, avsRequest.getMultipartParser());
+                doRequestActual(request, avsRequest.getRequestListener(),
+                        avsRequest.getMultipartParser());
                 return null;
             }
         };
@@ -248,16 +255,18 @@ public class AVSClient implements ConnectionListener {
      *
      * @param request
      *            The request to make.
+     * @param requestListener
+     *            The request listener to check request status.
      * @param multipartParser
      *            The {@link MultipartParser} to use for parsing the response to this request.
      * @throws AVSException
      *             is thrown when we get a non-2xx HTTP status code.
      * @throws IOException
      *             is thrown when parsing the multipart stream, and reading from the
-     *             {@link PipedChannelResponseListener}.
+     *             {@link InputStreamResponseListener}.
      */
-    private void doRequestActual(Request request, MultipartParser multipartParser)
-            throws AVSException, IOException {
+    private void doRequestActual(Request request, Optional<RequestListener> requestListener,
+            MultipartParser multipartParser) throws AVSException, IOException {
         request.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
 
         InputStreamResponseListener responseListener = new InputStreamResponseListener();
@@ -284,7 +293,13 @@ public class AVSClient implements ConnectionListener {
         log.info("Response code: {}", statusCode);
         log.info("Response headers: {}", response.getHeaders());
 
+        // If 200 or 204, trigger the result listener
+        if (statusCode == HttpStatus.OK_200) {
+            requestListener.ifPresent(l -> l.onRequestSuccess());
+        }
+
         if (statusCode == HttpStatus.NO_CONTENT_204) {
+            requestListener.ifPresent(l -> l.onRequestSuccess());
             log.info("This response successfully had no content.");
             return;
         }
@@ -376,7 +391,7 @@ public class AVSClient implements ConnectionListener {
      */
     public void sendEvent(RequestBody body, InputStream inputStream, RequestListener listener,
             AudioInputFormat audiotype)
-                    throws JsonGenerationException, JsonMappingException, IOException {
+            throws JsonGenerationException, JsonMappingException, IOException {
 
         AudioInputStreamContentProvider audioContent =
                 new AudioInputStreamContentProvider(audiotype, inputStream);
@@ -400,7 +415,7 @@ public class AVSClient implements ConnectionListener {
 
     /**
      * Get the Alexa Voice Service URL.
-     * 
+     *
      * @return URL the client is using for requests to Alexa Voice Service.
      */
     public URL getHost() {
@@ -446,10 +461,24 @@ public class AVSClient implements ConnectionListener {
      *
      * @param accessToken
      */
+
+    private static void setAccessTokenValue(String accessToken){
+        AVSClient.accessToken = accessToken;
+    }
+
     public void setAccessToken(String accessToken) {
-        this.accessToken = accessToken;
+        setAccessTokenValue(accessToken);
         startRequestThread();
         startDownchannelThread();
+    }
+
+    public void revokeAccessToken() {
+        setAccessTokenValue("");
+        stopDownchannelThread();
+    }
+
+    private static void cacheAccessToken(String accessToken) {
+        AVSClient.accessToken = accessToken;
     }
 
     void startRequestThread() {
@@ -459,12 +488,15 @@ public class AVSClient implements ConnectionListener {
     }
 
     void startDownchannelThread() {
+        stopDownchannelThread();
+        downchannelThread = new DownchannelRequestThread();
+        downchannelThread.start();
+    }
+
+    void stopDownchannelThread() {
         if (downchannelThread != null) {
             downchannelThread.shutdownGracefully();
         }
-
-        downchannelThread = new DownchannelRequestThread();
-        downchannelThread.start();
     }
 
     /**
@@ -505,16 +537,17 @@ public class AVSClient implements ConnectionListener {
                 AVSRequest avsRequest = new AVSRequest(Resource.DIRECTIVES, null,
                         new ExponentialRetryPolicy(REQUEST_RETRY_DELAY_MS, REQUEST_ATTEMPTS),
                         downchannelParser, new RequestListener() {
-
-                            @Override
-                            public void onRequestSuccess() {
-                            }
-
                             @Override
                             public void onRequestError(Throwable e) {
                                 if (shouldExceptionCauseShutdown(e)) {
                                     shutdownGracefully();
                                 }
+                                resultListener.onFailure();
+                            }
+
+                            @Override
+                            public void onRequestSuccess() {
+                                resultListener.onSuccess();
                             }
 
                             /**
@@ -532,7 +565,9 @@ public class AVSClient implements ConnectionListener {
                             }
 
                         });
+
                 doRequest(avsRequest);
+
                 log.info("Finishing downchannel");
             }
         }
@@ -553,7 +588,7 @@ public class AVSClient implements ConnectionListener {
                     AVSRequest request = queue.take();
                     doRequest(request);
 
-                    request.getRequestListener().ifPresent(l -> l.onRequestSuccess());
+                    request.getRequestListener().ifPresent(l -> l.onRequestFinished());
                 } catch (InterruptedException e) {
                     log.error("Exception in the request thread", e);
                 }
@@ -561,7 +596,7 @@ public class AVSClient implements ConnectionListener {
         }
     }
 
-    private static class RequestException extends RuntimeException {
+    static class RequestException extends RuntimeException {
         private static final long serialVersionUID = 1L;
 
         public RequestException(Throwable cause) {

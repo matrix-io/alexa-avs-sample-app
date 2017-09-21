@@ -55,3 +55,7 @@ set_target_properties( portaudio PROPERTIES IMPORTED_LOCATION
 add_library( sensory STATIC IMPORTED )
 set_target_properties( sensory PROPERTIES IMPORTED_LOCATION
         ${CMAKE_SOURCE_DIR}/../ext/lib/libsnsr.a )
+
+add_library( blas SHARED IMPORTED )
+set_target_properties( blas PROPERTIES IMPORTED_LOCATION
+        ${CMAKE_SOURCE_DIR}/../ext/lib/libblas.so.3 )
