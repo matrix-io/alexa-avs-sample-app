@@ -18,11 +18,14 @@ import com.amazon.alexa.avs.config.DeviceConfigUtils;
 import com.amazon.alexa.avs.http.AVSClientFactory;
 import com.amazon.alexa.avs.ui.graphical.GraphicalUI;
 import com.amazon.alexa.avs.ui.headless.HeadlessUI;
+import com.amazon.alexa.avs.ui.BaseUI;
 import com.amazon.alexa.avs.wakeword.WakeWordIPCFactory;
 
 public class App {
 
     private AVSController controller;
+    private AuthSetup authSetup;
+    private BaseUI appUI;
 
     public static void main(String[] args) throws Exception {
         if (args.length == 1) {
@@ -41,16 +44,17 @@ public class App {
     }
 
     public App(DeviceConfig config) throws Exception {
-        AuthSetup authSetup = new AuthSetup(config);
+        authSetup = new AuthSetup(config);
         controller =
                 new AVSController(new AVSAudioPlayerFactory(), new AlertManagerFactory(),
                         getAVSClientFactory(config), DialogRequestIdAuthority.getInstance(),
                         new WakeWordIPCFactory(), config);
         if (config.getHeadlessModeEnabled()) {
-            new HeadlessUI(controller, authSetup, config);
+            appUI = new HeadlessUI(controller, authSetup, config);
         } else {
-            new GraphicalUI(controller, authSetup, config);
+            appUI = new GraphicalUI(controller, authSetup, config);
         }
+        config.setApp(this);
     }
 
     protected AVSClientFactory getAVSClientFactory(DeviceConfig config) {
@@ -59,5 +63,13 @@ public class App {
 
     protected AVSController getController() {
         return controller;
+    }
+
+    public void replaceAVSController(DeviceConfig config) throws Exception {
+        controller =
+                new AVSController(new AVSAudioPlayerFactory(), new AlertManagerFactory(),
+                        getAVSClientFactory(config), DialogRequestIdAuthority.getInstance(),
+                        new WakeWordIPCFactory(), config);
+        appUI.replaceController(controller);
     }
 }

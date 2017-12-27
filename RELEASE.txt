@@ -9,3 +9,5 @@
 04/20/2017 - Node.js service now persists auth state. Listen button updated with microphone icon. GUI code refactoring. Bug fixes for low volume and wake word agent.
 06/20/2017 - Logout support and headless capabilities added.
 07/06/2017 - Add support for notifications interface
+09/11/2017 - Added support to automatically detect if the AVS Java Sample App should start in headless mode. Added support for Raspbian Stretch.
+12/03/2017 - Added support for these locales: Canada, India and Japan.

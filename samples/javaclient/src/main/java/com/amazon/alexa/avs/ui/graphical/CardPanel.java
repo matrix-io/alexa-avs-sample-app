@@ -36,7 +36,7 @@ import com.amazon.alexa.avs.message.response.templateruntime.Title;
 
 public class CardPanel extends JPanel implements Scrollable {
     private static final Logger log = LoggerFactory.getLogger(CardPanel.class);
-    private static final String BODY_TEMPLATE_1 = "bodyTemplate1";
+    private static final String BODY_TEMPLATE_1 = "BodyTemplate1";
     private Font defaultFont;
 
     private static final int SCROLLABLE_INCREMENT = 16;

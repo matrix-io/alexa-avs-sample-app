@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.amazon.alexa.avs</groupId>
   <artifactId>sample-java-client</artifactId>
-  <version>20160207.5</version>
+  <version>20160207.7</version>
   <name>Alexa Voice Service Sample Java Client</name>
   <url>https://developer.amazon.com/appsandservices/solutions/alexa/alexa-voice-service</url>
 
@@ -199,7 +199,7 @@
               <argument>-Dlog4j.configurationFile=file:///${basedir}/log4j2.xml</argument>
               <argument>-classpath</argument>
               <classpath/>
-              <argument>-Djna.library.path=${env.VLC_PATH}</argument>
+              <argument>-Djna.library.path=${env.VLC_PATH}:./lib</argument>
               <argument>com.amazon.alexa.avs.App</argument>
             </arguments>
           </configuration>

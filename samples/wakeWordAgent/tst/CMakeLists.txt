@@ -36,7 +36,9 @@ set( CMAKE_THREAD_PREFER_PTHREAD TRUE )
 
 add_executable( wakeWordAgentTest ${WAKE_WORD_AGENT_TEST_SOURCE} )
 
-set_target_properties( wakeWordAgentTest PROPERTIES COMPILE_FLAGS "-std=c++11" )
+# Set D_GLIBCXX_USE_CXX11_ABI to 0 to avoid undefined reference 
+# to libsnowboy-detect.a that built with c++ regular string.
+set_target_properties( wakeWordAgentTest PROPERTIES COMPILE_FLAGS "-std=c++11 -D_GLIBCXX_USE_CXX11_ABI=0" )
 
 target_include_directories( wakeWordAgentTest PRIVATE ${CMAKE_SOURCE_DIR}/../src )
 target_include_directories( wakeWordAgentTest PRIVATE ${CMAKE_SOURCE_DIR}/../ext/include )
