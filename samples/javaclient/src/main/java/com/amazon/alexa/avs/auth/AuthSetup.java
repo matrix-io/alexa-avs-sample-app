@@ -53,6 +53,10 @@ public class AuthSetup implements AccessTokenListener {
         accessTokenListeners.add(accessTokenListener);
     }
 
+    public void removeAccessTokenListener(AccessTokenListener accessTokenListener) {
+        accessTokenListeners.remove(accessTokenListener);
+    }
+
     /**
      * Initializes threads for the {@link CompanionAppProvisioningServer} and the
      * {@link CompanionServiceClient}, depending on which is selected by the user.

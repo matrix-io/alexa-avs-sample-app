@@ -284,6 +284,43 @@ use_template()
 }
 
 #-------------------------------------------------------
+# Get alpn-boot.version according to the Java version
+#-------------------------------------------------------
+get_alpn_version()
+{
+  Java_Version=`java -version 2>&1 | awk 'NR==1{ gsub(/"/,""); print $3 }'`
+  echo "java version: $Java_Version "
+  Java_Major_Version=$(echo $Java_Version | cut -d '_' -f 1)
+  Java_Minor_Version=$(echo $Java_Version | cut -d '_' -f 2)
+  echo "major version: $Java_Major_Version minor version: $Java_Minor_Version"
+  
+  Alpn_Version=""
+  if [ "$Java_Major_Version" = "1.8.0" ] && [ "$Java_Minor_Version" -gt 59 ]; then
+    if [ "$Java_Minor_Version" -gt 120 ]; then
+      Alpn_Version="8.1.11.v20170118"
+    elif [ "$Java_Minor_Version" -gt 111 ]; then
+      Alpn_Version="8.1.10.v20161026"
+    elif [ "$Java_Minor_Version" -gt 100 ]; then
+      Alpn_Version="8.1.9.v20160720"
+    elif [ "$Java_Version" == "1.8.0_92" ]; then
+      Alpn_Version="8.1.8.v20160420"
+    elif [ "$Java_Minor_Version" -gt 70 ]; then
+      Alpn_Version="8.1.7.v20160121"
+    elif [[ $Java_Version ==  "1.8.0_66" ]]; then
+      Alpn_Version="8.1.6.v20151105"
+    elif [[ $Java_Version ==  "1.8.0_65" ]]; then
+      Alpn_Version="8.1.6.v20151105"
+    elif [[ $Java_Version ==  "1.8.0_60" ]]; then
+      Alpn_Version="8.1.5.v20150921"
+    fi
+  else
+    echo "Unsupported or unknown java version ($Java_Version), defaulting to latest known ALPN."
+    Echo "Check http://www.eclipse.org/jetty/documentation/current/alpn-chapter.html#alpn-versions to get the alpn version matching your JDK version."
+    read -t 10 -p "Hit ENTER or wait ten seconds"
+  fi
+}
+
+#-------------------------------------------------------
 # Script to check if all is good before install script runs
 #-------------------------------------------------------
 clear
@@ -384,7 +421,7 @@ echo ""
 echo "======================================================="
 echo ""
 echo ""
-select_option Locale "en-US" "en-GB" "de-DE"
+select_option Locale "en-US" "en-GB" "de-DE" "en-CA" "en-IN" "ja-JP"
 
 # Force audio to correct output
 clear
@@ -480,6 +517,16 @@ sudo apt-get install -y vlc vlc-nox vlc-data
 #Make sure that the libraries can be found
 sudo sh -c "echo \"/usr/lib/vlc\" >> /etc/ld.so.conf.d/vlc_lib.conf"
 sudo sh -c "echo \"VLC_PLUGIN_PATH=\"/usr/lib/vlc/plugin\"\" >> /etc/environment"
+
+# Create a libvlc soft link if doesn't exist
+if ! ldconfig -p | grep "libvlc.so "; then
+  [ -e $Java_Client_Loc/lib ] || mkdir $Java_Client_Loc/lib
+  if ! [ -e $Java_Client_Loc/lib/libvlc.so ]; then
+   Target_Lib=`ldconfig -p | grep libvlc.so | sort | tail -n 1 | rev | cut -d " " -f 1 | rev`
+   ln -s $Target_Lib $Java_Client_Loc/lib/libvlc.so
+  fi 
+fi
+
 sudo ldconfig
 
 echo "========== Installing NodeJS =========="
@@ -549,43 +596,54 @@ echo "========== Installing Java Client =========="
 if [ -f $Java_Client_Loc/pom.xml ]; then
   rm $Java_Client_Loc/pom.xml
 fi
+
+get_alpn_version
+
 cp $Java_Client_Loc/pom_pi.xml $Java_Client_Loc/pom.xml
+
+sed -i "s/The latest version of alpn-boot that supports .*/The latest version of alpn-boot that supports JDK $Java_Version -->/" $Java_Client_Loc/pom.xml
+sed -i "s:<alpn-boot.version>.*</alpn-boot.version>:<alpn-boot.version>$Alpn_Version</alpn-boot.version>:" $Java_Client_Loc/pom.xml
+
 cd $Java_Client_Loc && mvn validate && mvn install && cd $Origin
 
 echo "========== Installing Companion Service =========="
 cd $Companion_Service_Loc && npm install && cd $Origin
 
-echo "========== Preparing External dependencies for Wake Word Agent =========="
-mkdir $External_Loc/include
-mkdir $External_Loc/lib
-mkdir $External_Loc/resources
+if [ "$Wake_Word_Detection_Enabled" = "true" ]; then
+  echo "========== Preparing External dependencies for Wake Word Agent =========="
+  mkdir $External_Loc/include
+  mkdir $External_Loc/lib
+  mkdir $External_Loc/resources
 
-cp $Kitt_Ai_Loc/snowboy/include/snowboy-detect.h $External_Loc/include/snowboy-detect.h
-cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/include/portaudio.h $External_Loc/include/portaudio.h
-cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/include/pa_ringbuffer.h $External_Loc/include/pa_ringbuffer.h
-cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/include/pa_util.h $External_Loc/include/pa_util.h
-cp $Kitt_Ai_Loc/snowboy/lib/$OS/libsnowboy-detect.a $External_Loc/lib/libsnowboy-detect.a
-cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/lib/libportaudio.a $External_Loc/lib/libportaudio.a
-cp $Kitt_Ai_Loc/snowboy/resources/common.res $External_Loc/resources/common.res
-cp $Kitt_Ai_Loc/snowboy/resources/alexa/alexa-avs-sample-app/alexa.umdl $External_Loc/resources/alexa.umdl
+  cp $Kitt_Ai_Loc/snowboy/include/snowboy-detect.h $External_Loc/include/snowboy-detect.h
+  cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/include/portaudio.h $External_Loc/include/portaudio.h
+  cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/include/pa_ringbuffer.h $External_Loc/include/pa_ringbuffer.h
+  cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/include/pa_util.h $External_Loc/include/pa_util.h
+  cp $Kitt_Ai_Loc/snowboy/lib/$OS/libsnowboy-detect.a $External_Loc/lib/libsnowboy-detect.a
+  cp $Kitt_Ai_Loc/snowboy/examples/C++/portaudio/install/lib/libportaudio.a $External_Loc/lib/libportaudio.a
+  cp $Kitt_Ai_Loc/snowboy/resources/common.res $External_Loc/resources/common.res
+  cp $Kitt_Ai_Loc/snowboy/resources/alexa/alexa-avs-sample-app/alexa.umdl $External_Loc/resources/alexa.umdl
 
-sudo ln -s /usr/lib/atlas-base/atlas/libblas.so.3 $External_Loc/lib/libblas.so.3
+  sudo ln -s /usr/lib/atlas-base/atlas/libblas.so.3 $External_Loc/lib/libblas.so.3
 
-$Sensory_Loc/alexa-rpi/bin/sdk-license file $Sensory_Loc/alexa-rpi/config/license-key.txt $Sensory_Loc/alexa-rpi/lib/libsnsr.a $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-20500.snsr $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-21000.snsr $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-31000.snsr
-cp $Sensory_Loc/alexa-rpi/include/snsr.h $External_Loc/include/snsr.h
-cp $Sensory_Loc/alexa-rpi/lib/libsnsr.a $External_Loc/lib/libsnsr.a
-cp $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-31000.snsr $External_Loc/resources/spot-alexa-rpi.snsr
+  $Sensory_Loc/alexa-rpi/bin/sdk-license file $Sensory_Loc/alexa-rpi/config/license-key.txt $Sensory_Loc/alexa-rpi/lib/libsnsr.a $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-20500.snsr $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-21000.snsr $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-31000.snsr
+  cp $Sensory_Loc/alexa-rpi/include/snsr.h $External_Loc/include/snsr.h
+  cp $Sensory_Loc/alexa-rpi/lib/libsnsr.a $External_Loc/lib/libsnsr.a
+  cp $Sensory_Loc/alexa-rpi/models/spot-alexa-rpi-31000.snsr $External_Loc/resources/spot-alexa-rpi.snsr
 
-mkdir $Wake_Word_Agent_Loc/tst/ext
-cp -R $External_Loc/* $Wake_Word_Agent_Loc/tst/ext
-cd $Origin
+  mkdir $Wake_Word_Agent_Loc/tst/ext
+  cp -R $External_Loc/* $Wake_Word_Agent_Loc/tst/ext
+  cd $Origin
 
-echo "========== Compiling Wake Word Agent =========="
-cd $Wake_Word_Agent_Loc/src && cmake . && make -j4
-cd $Wake_Word_Agent_Loc/tst && cmake . && make -j4
+  echo "========== Compiling Wake Word Agent =========="
+  cd $Wake_Word_Agent_Loc/src && cmake . && make -j4
+  cd $Wake_Word_Agent_Loc/tst && cmake . && make -j4
+fi
 
 chown -R $User:$Group $Origin
 chown -R $User:$Group /home/$User/.asoundrc
+
+cd $Origin
 
 echo ""
 echo '============================='

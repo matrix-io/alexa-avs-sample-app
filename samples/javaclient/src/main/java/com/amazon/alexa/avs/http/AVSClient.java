@@ -477,10 +477,6 @@ public class AVSClient implements ConnectionListener {
         stopDownchannelThread();
     }
 
-    private static void cacheAccessToken(String accessToken) {
-        AVSClient.accessToken = accessToken;
-    }
-
     void startRequestThread() {
         if (!requestThread.isAlive()) {
             requestThread.start();

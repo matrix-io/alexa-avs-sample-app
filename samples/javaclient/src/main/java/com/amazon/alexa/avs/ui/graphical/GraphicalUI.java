@@ -64,5 +64,4 @@ public class GraphicalUI extends BaseUI {
     protected void initialize(DeviceConfig config) {
         ((GraphicalMainView) mainView).setVisible(true);
     }
-
 }

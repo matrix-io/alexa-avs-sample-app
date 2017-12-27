@@ -88,4 +88,12 @@ public abstract class BaseUI {
      * after views are created, but before authentication.
      */
     protected abstract void initialize(DeviceConfig config);
+
+    public final void replaceController(AVSController newController) {
+        authSetup.removeAccessTokenListener(controller);
+        controller = newController;
+        authSetup.addAccessTokenListener(newController);
+        newController.init(listenView, notificationsView, cardView);
+        newController.startHandlingDirectives();
+    }
 }

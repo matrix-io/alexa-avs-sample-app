@@ -29,7 +29,28 @@ Or you can prototype with these third-party dev kits -
 
 ---
 
-## What's new?  
+## What's new?
+
+**December 3, 2017:** 
+
+*Updates*  
+
+* Added support for these locales: Canada, India, and Japan.   
+
+*Known Issues*  
+ 
+* A pause command followed by play/resume results in playback from the beginning of the audio item instead of the offset provided when the audio item was paused.
+
+**October 11, 2017:**
+
+*Updates*
+
+* Added support to automatically detect if the AVS Java Sample App should start in headless mode.
+* Added support for Raspbian Stretch.
+
+*Known Issues*
+
+* Error running the WakeWordAgent with Stretch on Pi 2.
 
 **July 6, 2017:**
 

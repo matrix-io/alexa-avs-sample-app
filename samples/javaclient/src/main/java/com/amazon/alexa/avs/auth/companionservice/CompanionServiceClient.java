@@ -16,6 +16,7 @@ import com.amazon.alexa.avs.auth.AuthConstants;
 import com.amazon.alexa.avs.auth.OAuth2AccessToken;
 import com.amazon.alexa.avs.auth.companionapp.CompanionAppProvisioningInfo;
 import com.amazon.alexa.avs.config.DeviceConfig;
+import com.amazon.alexa.avs.App;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -190,7 +191,18 @@ public class CompanionServiceClient {
 
         JsonObject response = callService("/provision/revokeToken", queryParameters);
 
-        return response.getBoolean(AuthConstants.LOGOUT_SUCCESS, false);
+        boolean retValue = response.getBoolean(AuthConstants.LOGOUT_SUCCESS, false);
+        try {
+            if (retValue) {
+                //you need a new AVS controller so that Alexa doesn't think you are the previous logged in user.
+                deviceConfig.getApp().replaceAVSController(deviceConfig);
+            }
+        } catch (Exception e) {
+            log.error("There was an error when replacing the controller. Exiting the app.", e);
+            System.exit(0);
+        }
+
+        return retValue;
     }
 
     JsonObject callService(String path, Map<String, String> parameters) throws IOException {

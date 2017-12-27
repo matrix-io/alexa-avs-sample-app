@@ -12,6 +12,15 @@
  */
 package com.amazon.alexa.avs.config;
 
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.amazon.alexa.avs.App;
+
+import java.awt.GraphicsDevice;
+import java.awt.GraphicsEnvironment;
+import java.awt.HeadlessException;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -24,8 +33,6 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
 
-import org.apache.commons.lang3.StringUtils;
-
 /**
  * Container that encapsulates all the information that exists in the config file.
  */
@@ -34,10 +41,16 @@ public class DeviceConfig {
     public static final String FILE_NAME = "config.json";
     private static final List<Locale> SUPPORTED_LOCALES = new ArrayList<>();
     static {
+        SUPPORTED_LOCALES.add(Locale.CANADA);
         SUPPORTED_LOCALES.add(Locale.US);
         SUPPORTED_LOCALES.add(Locale.UK);
+        // No constant exists in Locale for India
+        SUPPORTED_LOCALES.add(new Locale("en", "IN"));
+        SUPPORTED_LOCALES.add(Locale.JAPAN);
         SUPPORTED_LOCALES.add(Locale.GERMANY);
     }
+
+    private static final Logger log = LoggerFactory.getLogger(DeviceConfig.class);
 
     public static final String PRODUCT_ID = "productId";
     public static final String DSN = "dsn";
@@ -57,6 +70,7 @@ public class DeviceConfig {
     private final ProvisioningMethod provisioningMethod;
     private URL avsHost;
     private Locale locale;
+    private App app;
 
     /*
      * Optional parameters from the config file.
@@ -175,7 +189,20 @@ public class DeviceConfig {
         }
 
         this.wakeWordAgentEnabled = wakeWordAgentEnabled;
-        this.headlessModeEnabled = headlessModeEnabled;
+        this.headlessModeEnabled = canOnlyDoHeadless() || headlessModeEnabled;
+    }
+    
+    public boolean canOnlyDoHeadless() {
+        if (GraphicsEnvironment.isHeadless()) {
+            return true;
+        }
+        try {
+            GraphicsDevice[] screenDevices = GraphicsEnvironment.getLocalGraphicsEnvironment().getScreenDevices();
+            return screenDevices == null || screenDevices.length == 0;
+        } catch (HeadlessException e) {
+            log.warn("Unable to detect screen devices. Setting as Headless.", e);
+            return true;
+        }
     }
 
     public DeviceConfig(String productId, String dsn, String provisioningMethod,
@@ -217,6 +244,20 @@ public class DeviceConfig {
      */
     public String getDsn() {
         return dsn;
+    }
+
+    /**
+     * @return reference to the App.
+     */
+    public App getApp() {
+        return app;
+    }
+
+    /**
+     * @sets reference to the App.
+     */
+    public void setApp(App app) {
+        this.app = app;
     }
 
     /**
@@ -633,4 +674,3 @@ public class DeviceConfig {
         }
     }
 }
-
