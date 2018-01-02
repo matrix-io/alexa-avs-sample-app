@@ -582,11 +582,11 @@ if [ -f $Java_Client_Loc/config.json ]; then
 fi
 use_template $Java_Client_Loc template_config_json config.json
 
-echo "========== Configuring ALSA Devices =========="
-if [ -f /home/$User/.asoundrc ]; then
-  rm /home/$User/.asoundrc
-fi
-printf "pcm.!default {\n  type asym\n   playback.pcm {\n     type plug\n     slave.pcm \"hw:0,0\"\n   }\n   capture.pcm {\n     type plug\n     slave.pcm \"hw:1,0\"\n   }\n}" >> /home/$User/.asoundrc
+#echo "========== Configuring ALSA Devices =========="
+#if [ -f /home/$User/.asoundrc ]; then
+#  rm /home/$User/.asoundrc
+#fi
+#printf "pcm.!default {\n  type asym\n   playback.pcm {\n     type plug\n     slave.pcm \"hw:0,0\"\n   }\n   capture.pcm {\n     type plug\n     slave.pcm \"hw:1,0\"\n   }\n}" >> /home/$User/.asoundrc
 
 echo "========== Installing CMake =========="
 sudo apt-get install -y cmake
