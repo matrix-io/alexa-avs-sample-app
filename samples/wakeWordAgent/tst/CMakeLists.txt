@@ -31,6 +31,9 @@ set( WAKE_WORD_AGENT_TEST_LIBS
         sensory
         wiringPi )
 
+FIND_LIBRARY(HAL_LIB NAMES matrix_creator_hal)
+message(STATUS "HAL found => " "${HAL_LIB}")
+
 find_package( Threads )
 set( CMAKE_THREAD_PREFER_PTHREAD TRUE )
 
@@ -45,6 +48,7 @@ target_include_directories( wakeWordAgentTest PRIVATE ${CMAKE_SOURCE_DIR}/../ext
 
 target_link_libraries( wakeWordAgentTest ${WAKE_WORD_AGENT_TEST_LIBS} )
 target_link_libraries( wakeWordAgentTest ${CMAKE_THREAD_LIBS_INIT} )
+target_link_libraries( wakeWordAgentTest ${HAL_LIB} )
 
 add_library( snowboy-detect STATIC IMPORTED )
 set_target_properties( snowboy-detect PROPERTIES IMPORTED_LOCATION
