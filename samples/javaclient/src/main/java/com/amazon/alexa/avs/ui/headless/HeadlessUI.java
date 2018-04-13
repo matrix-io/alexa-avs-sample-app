@@ -127,7 +127,7 @@ public class HeadlessUI extends BaseUI implements AccessTokenListener {
         System.out.println("Next song: n/next");
         System.out.println("Play/Pause: p/play/pause");
         System.out.println("Previous song: b/back");
-        System.out.println("Switch locale: en-US/en-GB/de-DE/en-IN/ja-JP/en-CA");
+        System.out.println("Switch locale: en-US/en-GB/de-DE/en-IN/ja-JP/en-CA/en-AU");
         System.out.println("Quit: q/quit/exit");
         System.out.println("Display this help text again: h/help");
         System.out.println();
@@ -164,6 +164,7 @@ public class HeadlessUI extends BaseUI implements AccessTokenListener {
             case "en-IN":
             case "ja-JP":
             case "en-CA":
+            case "en-AU":
                 System.out.println("Switching locale to: " + input);
                 localeView.handleLocaleChange(Locale.forLanguageTag(input));
                 break;

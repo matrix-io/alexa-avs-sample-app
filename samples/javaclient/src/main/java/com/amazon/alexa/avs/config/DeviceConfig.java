@@ -41,13 +41,13 @@ public class DeviceConfig {
     public static final String FILE_NAME = "config.json";
     private static final List<Locale> SUPPORTED_LOCALES = new ArrayList<>();
     static {
+        SUPPORTED_LOCALES.add(new Locale("en", "AU"));
         SUPPORTED_LOCALES.add(Locale.CANADA);
-        SUPPORTED_LOCALES.add(Locale.US);
-        SUPPORTED_LOCALES.add(Locale.UK);
-        // No constant exists in Locale for India
         SUPPORTED_LOCALES.add(new Locale("en", "IN"));
         SUPPORTED_LOCALES.add(Locale.JAPAN);
         SUPPORTED_LOCALES.add(Locale.GERMANY);
+        SUPPORTED_LOCALES.add(Locale.UK);
+        SUPPORTED_LOCALES.add(Locale.US);
     }
 
     private static final Logger log = LoggerFactory.getLogger(DeviceConfig.class);

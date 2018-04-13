@@ -296,7 +296,9 @@ get_alpn_version()
   
   Alpn_Version=""
   if [ "$Java_Major_Version" = "1.8.0" ] && [ "$Java_Minor_Version" -gt 59 ]; then
-    if [ "$Java_Minor_Version" -gt 120 ]; then
+    if [ "$Java_Minor_Version" -gt 160 ]; then
+      Alpn_Version="8.1.12.v20180117"
+    elif [ "$Java_Minor_Version" -gt 120 ]; then
       Alpn_Version="8.1.11.v20170118"
     elif [ "$Java_Minor_Version" -gt 111 ]; then
       Alpn_Version="8.1.10.v20161026"
@@ -421,7 +423,7 @@ echo ""
 echo "======================================================="
 echo ""
 echo ""
-select_option Locale "en-US" "en-GB" "de-DE" "en-CA" "en-IN" "ja-JP"
+select_option Locale "en-US" "en-GB" "de-DE" "en-CA" "en-IN" "ja-JP" "en-AU"
 
 # Force audio to correct output
 clear
