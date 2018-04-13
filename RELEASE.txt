@@ -11,3 +11,4 @@
 07/06/2017 - Add support for notifications interface
 09/11/2017 - Added support to automatically detect if the AVS Java Sample App should start in headless mode. Added support for Raspbian Stretch.
 12/03/2017 - Added support for these locales: Canada, India and Japan.
+01/31/2018 - Added support for Australia/New Zealand. Added support for Java 1.8.0.161 and 1.8.0.162.

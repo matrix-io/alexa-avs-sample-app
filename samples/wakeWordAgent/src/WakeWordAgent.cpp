@@ -17,7 +17,7 @@
 
 #include <matrix_hal/everloop_image.h>
 #include <matrix_hal/everloop.h>
-#include <matrix_hal/wishbone_bus.h>
+#include <matrix_hal/matrixio_bus.h>
 
 namespace hal = matrix_hal;
 
@@ -69,12 +69,12 @@ WakeWordAgent::~WakeWordAgent() {
 // transition should be self-explanatory.
 void WakeWordAgent::mainLoop() {
 
-  hal::WishboneBus bus;
+  hal::MatrixIOBus bus;
 
-  bus.SpiInit();
+  if (!bus.Init()) return false;
 
   hal::Everloop everloop;
-  hal::EverloopImage image1d;
+  hal::EverloopImage image1d(bus.MatrixLeds());
 
   everloop.Setup(&bus);
 
